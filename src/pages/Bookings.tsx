@@ -1,28 +1,49 @@
 import { useEffect, useState } from 'react';
 import { getBookingsFromFirestore, deleteBookingFromFirestore } from '../utils/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Navbar from '../components/navbar';
 
 const Bookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
-
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const auth = getAuth();
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const data = await getBookingsFromFirestore();
-        setBookings(data);
-      } catch (err) {
-        setError('Failed to fetch bookings.');
-      } 
-    };
-    fetchBookings();
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user?.email) {
+        try {
+          const data = await getBookingsFromFirestore(user.email);
+          setBookings(data);
+          setError(null);
+        } catch (err) {
+          setError('Failed to fetch bookings.');
+        }
+      } else {
+        setBookings([]);
+        setError('User not authenticated.');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser?.email) {
+        setError('User not authenticated.');
+        return;
+      }
+      
+      // Find the booking to ensure it belongs to the current user
+      const booking = bookings.find(b => b.id === id);
+      if (!booking || booking.email !== currentUser.email) {
+        setError('You can only delete your own bookings.');
+        return;
+      }
+      
       await deleteBookingFromFirestore(id);
       setBookings((prev) => prev.filter((b) => b.id !== id));
     } catch (err) {

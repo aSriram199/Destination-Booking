@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, getDoc, addDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, addDoc, deleteDoc, query, where } from "firebase/firestore";
 import firebaseConfig from './config';
 import type { Destination } from "@/types";
 
@@ -62,14 +62,24 @@ export const addBookingToFirestore = async (data: any) => {
   }
 };
 
-// Get all bookings from Firestore
-export const getBookingsFromFirestore = async () => {
+// Get bookings from Firestore filtered by user email
+export const getBookingsFromFirestore = async (userEmail?: string) => {
   try {
     const bookingsCollection = collection(db, "bookings");
-    const snapshot = await getDocs(bookingsCollection);
+    
+    let snapshot;
+    if (userEmail) {
+      // Use Firebase query to filter by email for better performance
+      const q = query(bookingsCollection, where("email", "==", userEmail));
+      snapshot = await getDocs(q);
+    } else {
+      // If no email provided, get all bookings (for admin purposes)
+      snapshot = await getDocs(bookingsCollection);
+    }
+    
     const bookings: any[] = [];
     snapshot.forEach((doc) => {
-      bookings.push({ id: doc.id, ...doc.data() });
+      bookings.push({ id: doc.id, ...doc.data() } as any);
     });
     return bookings;
   } catch (error) {
