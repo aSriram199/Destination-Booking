@@ -1,14 +1,15 @@
-
-
+// Firebase Configuration
+// Replace these values with your actual Firebase project configuration
+// You can get these values from your Firebase Console
 
 const firebaseConfig = {
-  apiKey: "AIzaSyApvH5DEH3bU1QUKpKiGyLZ1ODOW4hxbmc",
-  authDomain: "cs-task-41a7d.firebaseapp.com",
-  projectId: "cs-task-41a7d",
-  storageBucket: "cs-task-41a7d.firebasestorage.app",
-  messagingSenderId: "167420865856",
-  appId: "1:167420865856:web:28ab0fa79363e5644f5ea5",
-  measurementId: "G-N0J6L6ZW9M"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "your-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "your-project-id",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "your-sender-id",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "your-app-id",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "your-measurement-id"
 };
 
 export default firebaseConfig;
