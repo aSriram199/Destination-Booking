@@ -2,6 +2,7 @@ import  { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import type { SubmitHandler } from "react-hook-form";
 import { Controller } from "react-hook-form";
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -33,6 +34,7 @@ type FormValues = {
 };
 
 const BookDestination = () => {
+  const auth = getAuth();
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, control } = useForm<FormValues>({
     defaultValues: {
       fullName: "",
@@ -56,6 +58,8 @@ const BookDestination = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [destinations, setDestinations] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   useEffect(() => {
     setValue("selectedDates", selectedDates ? selectedDates.map(d => d.toISOString()) : []);
@@ -65,23 +69,52 @@ const BookDestination = () => {
     const fetchDestinations = async () => {
       const data = await getDestinationsFromFirestore();
       setDestinations(data.map((d) => d.location));
-    //   console.log(data)
     };
     fetchDestinations();
   }, []);
 
+  // Listen for authentication state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (user?.email) {
+        setValue("email", user.email);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, setValue]);
+
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setSubmitError(null);
     setIsSubmittingBooking(true);
+    
+    // Ensure the booking is associated with the current authenticated user
+    if (!currentUser?.email) {
+      setSubmitError('You must be logged in to make a booking.');
+      setIsSubmittingBooking(false);
+      return;
+    }
+
     const niceDates = selectedDates ? selectedDates.map(d => d.toLocaleDateString()) : [];
     const payload = {
       ...data,
+      email: currentUser.email, // Ensure we use the authenticated user's email
       travelDates: niceDates,
+      userId: currentUser.uid, // Add user ID for additional security
     };
-    // console.log(payload)
+    
     try {
-      await addBookingToFirestore(payload);
+      const bookingId = await addBookingToFirestore(payload);
+      console.log('Booking created successfully with ID:', bookingId);
+      setBookingSuccess(true);
+      setSubmitError(null);
+      // Reset form after successful booking
+      setTimeout(() => {
+        window.location.href = '/bookings';
+      }, 2000);
     } catch (err) {
+      console.error('Booking error:', err);
       setSubmitError('Failed to book. Please try again.');
     } finally {
       setIsSubmittingBooking(false);
@@ -103,6 +136,7 @@ const BookDestination = () => {
         <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold mb-4">Book Destination</h1>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           {submitError && <div className="text-red-600 text-sm mb-2">{submitError}</div>}
+          {bookingSuccess && <div className="text-green-600 text-sm mb-2">✅ Booking created successfully! Redirecting to bookings page...</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="mb-1">Full name</Label>
@@ -112,8 +146,15 @@ const BookDestination = () => {
 
             <div>
               <Label className="mb-1">Email</Label>
-              <Input type="email" placeholder="you@example.com" {...register("email", { required: "Email is required" , pattern: { value: /\S+@\S+\.\S+/, message: "Enter a valid email" }})} />
-              {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>}
+              <Input 
+                type="email" 
+                placeholder="you@example.com" 
+                {...register("email", { required: "Email is required" })} 
+                readOnly 
+                className="bg-gray-100"
+                value={currentUser?.email || ""}
+              />
+              <p className="text-gray-500 text-xs mt-1">Email will be automatically filled from your account</p>
             </div>
 
             <div>
